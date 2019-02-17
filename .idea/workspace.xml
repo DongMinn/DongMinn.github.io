@@ -87,6 +87,7 @@
       <find>made with</find>
       <find>Hello, world</find>
       <find>Dev Blog</find>
+      <find>taylantatli</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
