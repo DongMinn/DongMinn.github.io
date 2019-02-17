@@ -1,0 +1,522 @@
+---
+layout: post
+title: "EffectiveJava 3판 간단 정리하는 포스트"
+date: 2019-02-17
+excerpt: "Effective Java 3판"
+tags: [자바, java, effectivejava]
+comments: true
+---
+
+### Item1. 생성자 대신 정적 팩터리 메서드를 고려하라
+
+
+
+#### 장점
+
+1. **이름을 가질 수 있다.** 
+
+```java
+BigInteger.probablePrime()
+```
+
+2. **호출될 때마다 인스턴스를 새로 생성하지는 않아도 된다.** 
+
+- 불변 클래스는 인스턴스를 미리 만들어 놓거나 새로 생성한 인스턴스를 캐싱하여 재활용하는 식으로 불필요한 객체 생성을 피할 수 있다. 
+
+3. **반환 타입의 하위 타입 객체를 반환할 수 있는 능력이 있다.**
+
+- 이 능력은 반환할 객체의 클래스를 자유롭게 선택할 수 있게 하는 '엄청난 유연성' 을 선물한다.
+- API를 만들때 이 유연성을 응용하면 구현 클래스를 공개하지 않고도 그 객체를 반환할 수 있어 API를 작게 유지할 수 있다.
+
+4. **입력 매개변수에 따라 매번 다른 클래스의 객체를 반활할 수 있다.**
+
+- 클라이언트가 모르는체로, 반환타입의 하위 타입이기만 하면 어떤 클래스의 객체를 반환하든 상관 없다.
+
+5. **정적 팩터리 메서드를 작성하는 시점에는 반환할 객체의 클래스가 존재하지 않아도 된다.**
+
+- 이런 유연함은 서비스 제공자 프레임워크를 만드는 근간이 된다. ex: JDBC
+
+
+
+#### 단점
+
+1. 상속을 하려면  public이나 protected 생성자가 필요하니 정적 팩터리 메서드만 제공하면 하위 클래스를 만들 수 없다.
+2. 정적 팩터리 메서드는 프로그래머가 찾기 어렵다.
+
+
+
+------
+
+### Item2. 생성자에 매개변수가 많다면 빌더를 고려하라
+
+
+
+정적 팩터리와 생성자는 똑같은 제약이 하나 있다. 선택적 매개변수가 많을 때 적절히 대응하기 어렵다는 점이다.
+
+그럴때는, 빌더를 사용하면 된다. 
+
+- 스프링에서는 lombok을 사용하면 빌더를 사용할 수 있다.
+
+------
+
+### Item3. Private 생성자나 열거 타입으로 싱글턴임을 보증하라
+
+
+
+싱글턴을 만드는 방법 1
+
+```java
+public class Elvis{
+    public static final Elvis INSTANCE = new Elvis();
+    private Elvis(){}
+}
+/*
+시스템 전체에서 인스턴스가 하나임을 보장하지만, 리플렉션API를 이용하면 private 생성자를 호출 할 수 있다. 
+이럴땐 생성자에 두번째 객체가 생성될 경우 예외를 던지게 해야 한다. 
+*/
+```
+
+
+
+싱글턴을 만드는 방법 2
+
+```java
+public class Elvis{
+    private static final Elvis INSTANCE = new Elvis();
+    private Elvis(){}
+    public static Elvis getInstance(){return INSTANCE;}
+}
+/*
+이것도 마찬가지로 리플렉션 이용하면 생성가능하기에, 예외 처리 필요 
+*/
+```
+
+
+
+싱글턴을 만드는 방법3
+
+```java
+public enum Elvis{
+    INSTANCE;
+}
+/*
+대부분의 상황에서는 원소가 하나뿐인 열거 타입이 싱글턴을 만드는 가장 좋은 방법이다.
+단, 만들려는 싱글턴이 Enum외의 클래스를 상속해야 한다면 이 방법은 사용할 수 없다.
+*/
+```
+
+
+
+------
+
+### Item4. 인스턴스화를 막으려거든 private 생성자를 사용하라 
+
+
+
+정적메서드와 정적 필드만을 담은 클래스를 만들고 싶을 때가 있다, 
+
+ex: java.lang.Math , java.util.Arrays 처럼 기본 타입 값이나 배열 관련 메서드들을 모아 놓을 수 있다. 
+
+이러한 클래스들의 경우에는 생성자를 private로 추가해두어야 한다. 그렇지 않을 경우 public 생성자가 기본으로 생성되기 때문에 이를 사용하는 사용자들이 의도하지 않게 인스턴스화를 하여 사용하게 될 수가 있다. 이것은 매우 큰 문제이므로 
+
+기본생성자에 private을 붙여 인스턴스화를 막아두어야 한다.
+
+```java
+private TestClass(){
+    throw new AssertionError();// 꼭 필요하진 않지만, 클래스 안에서 실수로 호출하지 않도록 추가해 둔다.
+}
+```
+
+이러한 private 생성자는 상속을 못하도록 막아주는 역할도 한다.
+
+
+
+------
+
+### Item5. 자원을 직접 명시하지 말고 의존 객체 주입을 사용하라 
+
+
+
+많은 클래스가 하나 이상의 자원에 의존한다. 
+
+가령 맞춤법 검사기는 사전(dictionary)에 의존하는데, 이런 클래스를 정적 유틸리티 클래스로 구현한 모습을 드물지 않게 볼 수 있다.
+
+```java
+public class SpellChecker{
+    private static final Lexicon dictionary =...;
+    private SpellChecker(){}//객체 생성자 방지
+    ...
+}
+```
+
+비슷하게 싱글턴으로 구현하는 경우도 흔하다.
+
+```java
+public class SpellChecker{
+    private final Lexicon dictionary = ...;
+    private SpellChecker(..){}
+    public static SpellChecker INSTANCE = new SpellChecker(...);
+    ...
+}
+```
+
+
+
+두 방식 모두 사전을 단 하나만 사용한다고 가정한다는 점에서 그리 훌륭해 보이지 않는다.
+
+SpellChecker가 여러 사전을 사용할 수 있도록 만들어보자. 
+
+```java
+public class SpellChecker{
+    private final Lexicon dictionary;
+    public SpellChecker(Lexicon dictionary){
+        this.dictionary = Objects.requireNoNull(dictionary);
+    }
+}
+```
+
+의존 객체 주입 패턴이다.
+
+
+
+**핵심정리**
+
+클래스가 내부적으로 하나 이상의 자원에 의존하고, 그 자원이 클래스 동작에 영향을 준다면 싱글턴과 정적 유틸리티 클래스는 사용하지 않는것이 좋다. 이 자원들을 클래스가 직접 만들게 해서도 안된다. 대신 필요한 자원을(혹은 그 자원을 만들어주는 팩터리를) 생성자에(혹은 정적 팩터리나 빌더에) 넘겨주자. 의존 객체 주입이라 하는 이 기법은 클래스의 유연성, 재사용성, 테스트 용이성을 기막히게 개선해준다. 
+
+
+
+------
+
+### Item6. 불필요한 객체 생성을 피하라
+
+
+
+똑같은 기능의 객체를 매번 생성하기 보다는 객체 하나를 재사용하는 편이 나을 때가 많다. 
+
+다음 코드는 하지 말아야할 극단적인 예이다 
+
+```java
+String s = new String("bikini");// 따라하지 말것
+```
+
+이 문장은 실행될 때마다 String인스턴스를 새로 만든다. 완전히 쓸데 없는 행위다. 반복문에서 쓰여진다면, 쓸데 없는  String인스턴스가 수백만개 만들어질 수도 있다.
+
+```java
+String s = "bikini";
+```
+
+이 코드는 새로운 인스턴스를 매번 만드는 대신 하나의 String 인스턴스를 사용한다. 
+
+
+
+생성비용이 아주 비싼 객체도 더러 있다. 이런 '비싼객체' 가 반복해서 필요하다면 캐싱하여 재사용하길 권장한다
+
+```java
+static boolean isRomanNumeral(String s){
+    return s.matches("정규식");
+}
+```
+
+이 방식의 문제는 String.matches 메서드를 사용하는 데 있다. String.matches는 정규표현식으로 문자열 형태를 확인하는 가장 쉬운 방법이지만, 성능이 중요한 상황에서 반복하기엔 적합하지 않다.
+
+이 메서드가 내부에서 만드는 정규표현식용 Pattern 인스턴스는, 한 번 쓰고 버려져서 곧바로 가비지 컬렉션 대상이 된다. 
+
+Pattern은 입력받은 정규표현식에 해당하는 유한 상태머신을 만들기 때문에 인스턴스 생성비용이 높다.
+
+성능을 개선하려면 필요한 정규표현식을 표현하는 Pattern인스턴스를 클래스 초기화 과정에서 직접 생성해 캐싱해두고, 나중에 isRomanNumeral 메서드가 호출될 때마다 이 인스턴스를 재사용 하면 된다.
+
+```java
+public class RomanNumerals{
+    private static final Pattern ROMAN = Pattern.compile("정규식");
+    
+    static boolean isRomanNumeral(String s){
+        return ROMAN.matcher(s).matches();
+    }
+}
+```
+
+이렇게 하면 성능을 상당히 끌어 올릴 수 있다.
+
+
+
+ROMAN이 실제로 사용되지 않는 경우에는 쓸데 없이 초기화 한 꼴이 되지만, 이를 피하기 위해 지연초기화 할 필요는 없다. 이는 불필요한 코드만 늘리는 꼴이다.(성능은 크게 향상되지 않음)
+
+불필요한 객체를 만들어내는 예로 오토박싱도 있다.
+
+오토박싱은 기본타입과 그에 대응하는 박싱된 기본 타입의 구분을 흐려주지만, 완전히 없애주는 것은 아니다.
+
+```java
+private static long sum(){
+    Long sum = 0L;// Long 이라서
+    for(long i=0; i<=Integer.MAX_VALUE;++)
+        sum+=i;// 오토 박싱이 이루어 진다.
+    
+    return sum;
+}
+```
+
+이렇게 하면 Long 인스턴스가 불필요하게 생성되어 성능 저하의 원인이 된다.
+
+(책에서는 6.3초 -> 0.59초가 되었다고 한다.)
+
+
+
+아이템 50에서는 "새로운 객체를 만들어야 한다면 기존 객체를 재사용하지 마라" 가 나오는데, 이는 "기존 객체를 재사용해야 한다면 새로운 객체를 만들지 마라 " 인 이번 아이템과 대조적이다. 
+
+단 이번 아이템은 성능과 코드형태에만 영향을 주지만, 아이템 50은 보안과, 버그에 영향을 주기 때문에 둘이 겹치는 경우에는 아이템 50을 우선시 해야 한다. 
+
+------
+
+
+
+### Item7. 다 쓴 객체 참조를 해제하라 
+
+
+
+가비지 컬렉터를 갖춘 언어라 해서, 메모리 관리를 더 이상 신경쓰지 않아도 되는것은 아니다.
+
+```java
+public class Stack{
+
+    ...
+        public Object pop(){
+        if(size == 0)
+            throw new EmptyStackException();
+        return elements[--size];//여기서 메모리 누수가 발생한다.
+    }    
+}
+```
+
+가비지 컬렉션 언어에서는 의도하지 않게 객체를 살려둠으로써, 메모리 누수를 찾기가 매우 까다로워 진다. 
+
+객체 참조 하나를 살려두면 가비지 컬렉터는 그 객체뿐아니라 그 객체가 참조하는 모든 객체를 회수해가지 못한다. 
+
+이럴때의 해법은 간단하다. null처리 하는 것이다.
+
+```java
+public Object pop(){
+    if(size==0)
+        throw new EmptyStackException();
+    Object result = elements[--size];
+    elements[size] = null;// 다쓴참조 해제
+    return result;
+}
+```
+
+이렇게 하면 다 쓴 참조를 null로 해 두었기 때문에, 실수로 사용하려 할때 NullPointerException 을 던지며 종료된다.
+
+
+
+다만 모든것에 이렇게 하는 것은 바람직 하지 않다. 프로그램을 필요 이상으로 지저분하게 만들 뿐이다.
+
+**객체 참조를 null처리하는 일은 예외적인 경우여야 한다.**  다 쓴 참조를 해제하는 가장 좋은 방법은 그 참조를 담은 변수를 유효범위 밖으로 밀어내는 것이다. (아이템57)
+
+가비지 컬렉터는 elements에서 비활성화된 영역이 무엇인지 알 길이 없다. 그렇기 때문에 프로그래머는 비활성 영역이 되는 순간 null처리를 해서 더이상 쓰지 않음을 알려줘야 한다. 
+
+일반적으로 **자기 메모리를 직접 관리하는 클래스라면 프로그래머는 항시 메모리 누수에 주의해야 한다.**  원소를 다 사용한 즉시 그 원소가 참조한 객체들을 다 null처리 해줘야 한다.
+
+
+
+메모리 누수는 컽으로 잘 드러나지 않아 시스템에 수년간 잠복하는 사례도 있다. 이런 누수는 철저한 코드 리뷰나 힙 프로파일러 같은 디버깅 도구를 동원해야만 발견되기도 한다. 그래서 이런 종류의 문제는 예방법을 익혀두는 것이 매우 중요하다.
+
+
+
+------
+
+
+
+### Item8. finalizer와 cleaner 사용을 피하라
+
+
+
+자바는 두 가지 객체 소멸자를 제공한다. 그중 **finalizer는 예측할 수 없고, 상황에 따라 위험할 수 있어 일반적으로 불필요하다.** 오동작, 낮은 성능, 이식성 문제의 원인이 되기도 한다. finalizer는 나름의 쓰임새가 몇 가지 있긴 하지만 기본적으로 쓰지말아야 한다. 그래서 자바 9 에서는 finalizer를 사용 자재(deprecated) API 로 지정하고 cleaner를 그 대안으로 소개 했다. 
+
+**cleaner는 finalizer보다는 덜 위험하지만, 여전히 예측할 수 없고, 느리고, 일반적으로 불필요하다.** 
+
+C++ 의 destructor와는 다른 개념이다. C++에서는 바로 회수할 때 사용 할 수 있지만 자바에서는 finalizer와 cleaner가 실행되기 까지 얼마나 걸릴지 알 수 없다. 즉 **finalizer와 cleaner로는 제때 실행되어야 하는 작업은 절대 할 수 없다.**  
+
+finalizer나 cleaner를 얼마나 신속히 수행할지는 전적으로 가비지 컬렉터 알고리즘에 달렸으며, 이는 가비지 컬렉터 구현마다 천차만별이다. 
+
+따라서 프로그램 생애주기와 상관없는, **상태를 영구적으로 수정하는 작업에서는 절대 finalizer나 cleaner에 의존해서는 안된다.**  예를 들어 데이터베이스 같은 공유자원의 영구 락 해제를 finalizer나 cleaner에 맡겨 놓으면 분산 시스템 전체가 서서히 멈출 것이다. 
+
+(엄청 길었는데.. 우선 생략.. 계속 쓰지 말라는 얘기임.. 안씀!)
+
+
+
+------
+
+### Item9. try-finally 보다는  try-with-resources를 사용하라
+
+자바 라이브러리에는 close 메서드를 호출해 직접 닫아줘야 하는 자원들이 많다. InputStream, OutputStream, Connection 등이 좋은 예이다. 자원 닫기는 클라이언트가 놓치기 쉬워서 예측할 수 없는 성능 문제로 이어지기도 한다. 이런 자원 중 상당수가 안전망으로 finalizer를 활용하고는 있지만 finalizer는 그리 믿을 만 하지 않다. 
+
+전통적으로 자원이 제대로 닫힘을 보장하는 수단으로 try-fianlly가 쓰였다. 
+
+```java
+static String firstLineOfFile(String path) throws IOException{
+    BufferedRader br = new BufferedReader(new FileReader(path));
+    try{
+        return br.readLine();
+    } finally{
+        br.close();
+    }
+}
+```
+
+나쁘지 않다. 하지만 자원을 하나 더 사용한다면 어떨까?
+
+```java
+static void copy(String src, String dst) throws IOException {
+    InputStream in = new FileInputStream(src);
+    try{
+        OutputStream out = new FileOutputStream(dst);
+        try{
+            byte[] buf = new byte[BUFFER_SIZE];
+            int n;
+            while()
+        }
+    }
+}
+
+```
+
+
+
+이렇게라도 하면 참 좋은건데.. 사실 이렇게 해도 문제가 있다.
+
+예컨대 기기에 물리적 문제가 발생하여 firstLineOfFile메서드 안의 readLine메서드가 예외를 던지고, 같은 이유로 close 메서드도 실패할 것이다. 이런 상황이라면 두번째 예외가 첫 번째 예외를 완전히 집어 삼키게 된다(?)
+
+물론 두번째 예외 대신 첫 번째 예외를 기록하도록 코들르 수정할 수는 있지만, 코드가 너무 지저분해져서 실제로 그렇게까지 하는 경우는 거의 없다.
+
+이러한 문제를 자바 7에서 만든 try-with-resourcses덕에 모두 해결 되었다. 
+
+이 구조를 사용하려면 AutoCloseable인터페이스를 구현해야 한다. 단순히 void를 반환하는 close메서드 하나만 덩그러니 정의한 이터페이스이다. 자바 라이브러리와 서드 파티 라이브러리들의 수많은 클래스와 인터페이스가 이미 AutoCloseable을 구현하거나 확장해 뒀다. 
+
+다음은 앞선 코드를 try-with-resources로 재 작성한 예이다.
+
+```java
+static String firstLineOfFile(String path) throws IOException{
+    try(BufferedREader br = new BufferedReader(new FileReader(path))){
+        return br.readLine();
+    }
+}
+
+```
+
+```java
+static void copy(String src, String dst) throws IOException{
+    try(InputStream in = new FileInputtream(src);
+        OutputStream out = new FileOutputStream(dst)){
+        byte[] buf = new byte[BUFFER_SIZE];
+        int n;
+        while((n=in.read(buf))>=0)
+            out.write(buf,0,n);
+    }
+}
+
+```
+
+
+
+try-with-resources 버전이 짧고 읽기 수월할 뿐 아니라 문제를 진단하기도 훨씬 좋다.
+
+앞에서 처럼 물리적 이슈로 인해 예외가 발생하더라도 close에서 발생한 예외는 숨겨지고 readLine에서 발생한 예외가 기록된다. 이처럼 실전에서는 프로그래머에게 보여줄 예외 하나만 보존되고 여러 개의 다른 예외가 숨겨질 수도 있다. 
+
+이러한 숨겨진 예외들도 그냥 버려지지는 않고, 스택 추적 내역에 '숨겨졌다(suppressed)'는 꼬리표를 달고 출력된다. 
+
+또한 자바 7 Throwable에 추가된 getSuppressed 메서드를 이용하면 프로그램 코드에서 가져올 수도 있다. 
+
+물론 try-with-resources에서도 catch구문을 쓸 수 있다.
+
+```java
+static String firstLineOfFile(String path) throws IOException{
+    try(BufferedREader br = new BufferedReader(new FileReader(path))){
+        return br.readLine();
+    } catch(IOEception e){
+        return defaultVal;
+    }
+}
+
+```
+
+예외를 던지는 대신 기본값을 반환하도록 하였다. 예가 어색하지만 이해해주기 바란다.
+
+
+
+**핵심정리**
+
+꼭 회수해야 하는 자원을 다룰 때는 try-finally말고, try-with-resources를 사용하자. 예외는 없다. 코드는 더 짧고 분명해지고, 만들어지는 예외 정보도 훨씬 유용하다. 
+
+
+
+잘 정리된 글인듯. https://multifrontgarden.tistory.com/192
+
+------
+
+### Item10. equals는 일반 규약을 지켜 재정의하라 
+
+
+
+equals 메서드는 재정의 하기 쉬워 보이지만 곳곳에 함정이 도사리고 있어서 자칫하면 끔찍한 결과를 초래한다. 문제를 회피하는 가장 쉬운 길은 아예 재정의하지 않는 것이다. 
+
+그냥 두면 그 클래스의 인스턴스는 오직 자기 자신과만 같게 된다. 그러니 다음과 같은 상황 중 하나에 해당한다면 재정의 하지 않는 것이 최선이다.
+
+- **각 인스턴스가 본질적으로 고유하다.**  값을 표현하는게 아니라 동작하는 개체를 표현하는 클래스가 여기 해당한다. Thread가 좋은 예로, Object의 equals 메서드는 이러한 클래스에 딱 맞게 구현되었다. 
+
+- **인스턴스의 '논리적 동치성(logical equality)'을 검사할 일이 없다.**  예컨대 java.util.regex.Pattern은 equals를 재정의해서 두 Pattern의 인스턴스가 같은 정규표현식을 나타내는지를 검사하는, 즉 논리적 동치성을 검사하는 방법도 있다. 하지만 설계자는 클라이언트가 이 방식을 원하지 않거나 애초에 필요하지 않다고 판단할 수도 있다. 설계자가 후자로 판단했다면 Object의 기본 equals만으로 해결된다. 
+
+- **상위 클래스에서 재정의한 equals가 하위 클래스에도 딱 들어맞는다.** 예컨대 대부분의 Set구현체는 AbstractSet이 구현한  equals 를 상속받아 쓰고, List 구현체들은 AbstractList로부터, Map 구현체들은 AbstractMap으로부터 상속받아 그대로 쓴다. 
+
+- **클래스가 private 이거나 package-private이고 equals 메서드를 호출할 일이 없다.** 여러분이 위험을 철저히 회피하는 스타일이라  equals가 실수로라도 호출되는 걸 막고 싶다면 다음처럼 구현해두자.
+
+  ```java
+  @Override
+  public boolean equals(Object o){
+      throw new AssertionError();//호출 금지
+  }
+  
+  ```
+
+
+
+그렇다면 언제 equals를 재정의 해야 하는가?
+
+- 객체 식별성(object identity; 두 객체가 물리적으로 같은가)이 아니라 논리적 동치성을 확인해야 하는데, 상위 클래스의 equals가 논리적 동치성을 비교하도록 재정의되지 않았을 때다.
+- 주로 값 클래스들이 여기 해당한다. 값 클래스란 Integer와 String처럼 값을 표현하는 클래스를 말한다. 
+  두 값 객체를 equals로 비교하는 프로그래머는 객체가 같은지가 아니라 값이 같은지를 알고 싶어 할 것이다. 
+
+eqauls가 논리적 동치성을 확인하도록 재정의 해두면, 그 인스턴스는 값을 비교하길 원하는 프로그래머의 기대에 부응함은 물론Map의 키와 Set의 원소로 사용할 수 있게 된다. 
+
+값 클래스라 해도, 값이 같은 인스턴스가 둘 이상 만들어지지 않음을 보장하는 인스턴스 통제 클래스(item 1) 라면 equals를 재정의하지 않아도 된다.
+
+equals메서드를 재정의할 때는 반드시 일반 규약을 따라야 한다. Object 명세에 적힌 규약이다.
+
+> equals메서드는 동치관계(equivalence relation)를 구현하며, 다음을 만족한다.
+>
+> - 반사성(reflexivity) : null이 아닌 모든 참조 값 x에 대해, x.equals(x) 는 true 이다.
+> - 대칭성(symmetry): null이 아닌 모든 참조 값 x, y 에 대해 x.equals(y)가 true면 y.equals(x)도  true이다.
+> - 추이성(transitivity): null이 아닌 모든 참조 값 x,y,z에 대해, x.equals(y) 가 true이고 y.equals(z)도 true이면, x.equals(z)도 true이다.
+> - 일관성(consistency): null이 아닌 모든 참조 값 x,y에 대해, x.equals(y)를 반복해서 호출하면 항상 true를 반환하거나 항상 false를 반환한다.
+> - null-아님: null이 아닌 모든 참조 값 x 에 대해, x.equals(null)은 false이다.
+
+
+
+그렇다면 Object명세에서 말하는 동치관계란 무엇일까?
+
+동치 관계를 만족시키기 위한 다섯 요건을 하나씩 살펴보자.
+
+- **반사성**은 단순히 말하면 객체는 자기 자신과 같아야 한다는 뜻이다. 이 요건은 일부러 어기는 경우가 아니라면 만족시키지 못하기가 더 어렵다. 
+
+- **대칭성**은 두 객체는 서로에 대한 동치 여부에 똑같이 답해야 한다는 뜻이다. 반사성 요건과 달리 대칭성 요건은 자칫하면 어길 수 있어 보인다. 
+  대소문자를 구별하지 않는 문자열을 구현한 다음 클래스를 예로 살펴보자. 이 클래스에서 toString메서드는 원본 문자열의 대소문자를 그대로 돌려주지만 equals에서는 대소문자를 무시한다.
+
+  ```java
+  public final class CaseInsensitiveString{
+      
+  }
+  
+  ```
+
+  
+
+
+
