@@ -511,12 +511,85 @@ equals메서드를 재정의할 때는 반드시 일반 규약을 따라야 한�
 
   ```java
   public final class CaseInsensitiveString{
+      private final String s;
       
+      public CaseInsenstiveString(String s){
+          this.s = Objects.requrieNonNull(s);
+      }
+      //대칭성위배!
+      @Override
+      public boolean equals(Object o){
+          if(o instanceof CaseInsentiveString)
+              return s.equalsIgnoreCase(((CaseInsenstiveString)o).s);
+          if(o instanceof String)//한 방향으로만 작동한다.
+              return s.equalsIgnoreCase(String o);
+          return false;
+      }
+      ...//나머지 코드 생략
   }
   
   ```
 
-  
+  CaseInsenstiveString 의 equals는 순진하게 일반 문자열과도 비교를 시도한다. 다음처럼 CaseInsenstiveString 과 일반 String 객체가 하나씩 있다고 해보자.
+
+  ```java
+  CaseInsensitiveString cis = new CaseInsensitiveString("Polish");
+  String s = "polish";
+  ```
+
+  예상할 수 있듯이 cis.equals(s)는 true를 반한환다. 하지만 문제는 String에서는 CaseInsensitiveString의 존재를 모른다. 따라서 s.equals(cis)는 false를 반환하여, 대칭성을 명백히 위반한다. 
+  CaseInsensitiveString을 컬렉션에 넣으면, 어떤 예외를 던질지 구현하기 나름이다. 
+  **equals규약을 어기면 그 객체를 사용하는 다른 객체들이 어떻게 반응할지 알 수 없게 되는것이다.**
+
+  그래서 아래와 같이 바껴야 한다?
+
+  ```java
+  @Override
+  public boolean equals(Object o){
+      return o instanceof CaseInsensitiveString && ((CaseInsensitiveString)o).s.equalsIgnoreCase(s);
+  }
+  ```
+
+- **추이성**은 첫 번째 객체와 두 번째 객체가 같고, 두 번째 객체와 세 번째 객체가 같다면, 첫 번재 객체와 세 번째 객체도 같아야 한다는 뜻이다. 이 요건도 간단하지만 자칫하면 어기기 쉽다. 
+  상위 클래스에 없는 새로운 필드를 하위 클래스에 추가하는 상황을 생각해 보자. 
+
+  ```java
+  public class Point{
+      private final int x;
+      private final int y;
+      
+      public point(int x, int y){
+          this.x = x;
+          this.y = y;
+      }
+      
+      @Override
+      public boolean equals(Object o){
+          if(!(o instanceof Point))
+              return false;
+          Point p = (Point)o;
+          return p.x == x&& p.y == y;
+      }
+  }
+  ```
+
+  이제 이 클래스를 확장해서 점에 생삭을 더해보자.
+
+  ```java
+  public class ColorPoint extends Point{
+      private final Color color;
+      public ColorPoint(int x, int y, Color color){
+          super(x,y);
+          this.color = color;
+      }
+  }
+  ```
+
+  equals 메서드는 어떻게 해야 할까? 그대로 둔다면 Point의 구현이 상속되어 색상 정보는 무시한 채 비교하게 된다. 
+
+
+
+
 
 
 
