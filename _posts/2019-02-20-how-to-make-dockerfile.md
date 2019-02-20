@@ -7,3 +7,20 @@ tags: [docker, dockerfile]
 comments: true
 ---
 
+
+
+# Dockerfile 문법
+
+
+
+#### 주석
+
+```dockerfile
+#이건 주석.
+FROM nginx:alpine
+```
+
+
+
+#### FROM
+
