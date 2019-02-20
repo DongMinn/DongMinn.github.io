@@ -2,7 +2,7 @@
 layout: post
 title: "Dockerfile 잘 작성하기"
 date: 2019-02-18
-excerpt: "Dockerfile 잘 작성"
+excerpt: "Dockerfile 잘 작성하기"
 tags: [docker, dockerfile]
 comments: true
 ---
@@ -13,7 +13,7 @@ comments: true
 
 
 
-###Dockerfile
+### Dockerfile
 
 - 일종의 이미지 설정파일이다.
 - 생긴 모양은 쉘 스크립트와 유사하지만 자체의 문법을 가지고 있다. 이렇게 작성된 Dockerfile은 `build` 명령어를 통해 이미지를 생성할 수 있다.
@@ -43,7 +43,7 @@ comments: true
 
 
 
-####줄바꿈을 사용하여 정렬하자 
+#### 줄바꿈을 사용하여 정렬하자 
 
 ```shell
 RUN apt-get update && apt-get install -y \
@@ -77,4 +77,4 @@ Docker가 캐시를 사용하게 하려면 일치하는 이미지를 찾을 때�
 
 
 *참고 사이트*
-https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
+[https://docs.docker.com/develop/develop-images/dockerfile_best-practices/](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/)
